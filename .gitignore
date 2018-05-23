@@ -1,3 +1,11 @@
+# Custom
+data/
+coner_feedback_analyser.sublime-workspace
+config.py
+.DS_Store
+**/*/.DS_Store
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
