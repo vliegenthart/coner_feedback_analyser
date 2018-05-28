@@ -1,11 +1,11 @@
-
-
 # @author Daniel Vliegenthart
 # Generate overview JSON of rewards
+
 import json
 import time
 import os
 from config import ROOTPATH, viewer_pids, data_date
+from util_functions import read_json_file
 
 # ################### #
 #      SETUP ARGS     #
@@ -13,12 +13,11 @@ from config import ROOTPATH, viewer_pids, data_date
 
 def main():
 
-  # ########################################### #
-  #      GENERATE OVERVIEW FILES FOR HAS PDF    #
-  # ########################################### #
+  # ############################# #
+  #      GENERATE REWARDS JSON    #
+  # ############################# #
 
-  data_string = open(f'data/firebase-{data_date}-coner-viewer-export.json').read()
-  data_json = json.loads(data_string)
+  data_json = read_json_file(f'data/firebase-{data_date}-coner-viewer-export.json')
 
   rewards_json = data_json['rewards']
   rewards = []
