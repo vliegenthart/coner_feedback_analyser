@@ -7,7 +7,7 @@ import os
 from config import ROOTPATH, viewer_pids, data_date, facets
 from util_functions import read_json_file
 from colorama import Fore, Back, Style
-
+from itertools import groupby
 
 # TODO
 # - Average entity rating time per paper, user and total
@@ -40,7 +40,6 @@ def main():
   
   # rewards = []
   # users = []
-  ratings_raw = []
 
   # Perform some preprocessing and formatting for data attributes
   for key in data_json.keys():
@@ -50,19 +49,20 @@ def main():
         if 'timestamp' in data_obj.keys(): data_obj['timestamp_formatted'] = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(data_obj['timestamp']))
 
         data_obj['firebase_id'] = firebase_id
-        ratings_raw.append(data_obj)
 
   # Generate data statistics for 'ratings'
+  ratings_raw_arr, ratings_arr = process_ratings(data_json['ratings'])
+  print(len(ratings_raw_arr), len(ratings_arr))
+
   for facet in facets:
-    for pid in data_json['ratings'].keys():
-      for firebase_id, rating in [(firebase_id, obj) for firebase_id, obj in data_json['ratings'][pid].items() if obj['facet'] == facet]:
+    for rating in [obj for obj in ratings_arr if obj['facet'] == facet]:
 
-        entity = rating['entityText'].strip(" \t,-.[]()").lower()
+      entity = rating['entityText'].strip(" \t,-.[]()").lower()
 
-        if not entity in ratings[facet].keys(): ratings[facet][entity] = [0,0,0, rating['highlightType']]
+      if not entity in ratings[facet].keys(): ratings[facet][entity] = [0,0,0, rating['highlightType']]
 
-        ratings[facet][entity][2] += 1
-        ratings[facet][entity][relevance_ENUM[rating['relevance']]] += 1
+      ratings[facet][entity][2] += 1
+      ratings[facet][entity][relevance_ENUM[rating['relevance']]] += 1
 
 
     print(f'\n\n##### {facet}: RELEVANT #####\n\n')
@@ -81,14 +81,34 @@ def main():
 
   print("\n\n##### RATING STATISTICS #####")
   print(f'Total entities rated: {len(ratings[facets[0]].keys())}')
-  print(f'Total ratings: {len(ratings_raw)}')
+  print(f'Total ratings: {len(ratings_arr)}')
+  print(f'Number of times people changed rating: {len(ratings_raw_arr) - len(ratings_arr)}')
+
   for facet in facets:
     print(f'Average number ratings per entity ({facet}): {round(float(sum([rating[2] for key, rating in ratings[facet].items()]))/len(ratings[facet]),2)}')
 
+  # Take rating versioning into account!!!
   # Average Nr ratings generated vs selected
   # Nr highlights generated vs selected
   # Interannotator agreement generated vs selected
   # How often did people change their mind or missclick (check version numbers and how many)
+
+def process_ratings(ratings_json):
+  ret_ratings_raw = []
+  ret_ratings = []
+
+  for pid in ratings_json.keys():
+    pid_ratings = [rating for firebase_id, rating in ratings_json[pid].items()]
+    pid_ratings.sort(key=lambda rating: (rating['facet'], rating['highlightId'], rating['uid']))
+    ret_ratings_raw += pid_ratings
+
+
+    groups = groupby(pid_ratings, lambda rating: (rating['facet'], rating['highlightId'], rating['uid']))
+
+    for key1, group in groups:
+      ret_ratings.append(max(list(group), key=lambda rating: rating['version']))
+      
+  return ret_ratings_raw, ret_ratings
 
 
 # Write the array of highlights to json file
