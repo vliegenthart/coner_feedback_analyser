@@ -4,6 +4,7 @@ coner_feedback_analyser.sublime-workspace
 config.py
 .DS_Store
 **/*/.DS_Store
+results/
 
 
 # Byte-compiled / optimized / DLL files
