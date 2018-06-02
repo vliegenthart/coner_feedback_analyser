@@ -127,6 +127,7 @@ def main():
   users_ratings_time_raw = { uid : list() for uid in users.keys() if not len(users_ratings[uid]) < thres_min_ratings }
 
   for uid, user_ratings in users_ratings.items():
+    both_facets = 0
     if len(user_ratings) < thres_min_ratings: continue
 
     highlights_rated = set([user_ratings[0]['highlightId']])
@@ -141,18 +142,19 @@ def main():
 
       if not rat1['pid'] == rat2['pid'] or time_diff > thres_max_rating_time: continue
 
-      if rat2['highlightId'] not in highlights_rated: highlights_rated.add(rat2['highlightId']) or users_ratings_time[uid].append(time_diff)
+      if rat2['highlightId'] not in highlights_rated: 
+        highlights_rated.add(rat2['highlightId']
+        both_facets +=1
 
-      users_ratings_time_raw[uid].append(time_diff)
+      users_ratings_time[uid].append(time_diff)
 
-  print("\n\nPER RATING CLICK")
-  for uid, times in users_ratings_time_raw.items():
-    print(users[uid]['email'], round(float(sum(times))/len(times)), max(times), min(times))
+  # print("\n\nPER RATING CLICK")
+  # for uid, times in users_ratings_time_raw.items():
+  #   print(users[uid]['email'], round(float(sum(times))/len(times)), max(times), min(times))
 
   print("\n\nPER ENTITY")
   for uid, times in users_ratings_time.items():
-    print(users[uid]['email'], round(float(sum(times))/len(times)), max(times), min(times))
-
+    print(users[uid]['email'], round(float(sum(times))/(len(times)*(len(times)/2)))), max(times), min(times))
 
   return
 
