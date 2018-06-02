@@ -21,7 +21,10 @@ from itertools import groupby
 # Highlight attribute: <key: highlight_id> = <value: <highlight attributes>>
 highlights = { "dataset": {}, "method": {} }
 
-# Rating attribute: <key: entity_text> = <value: [<#relevant>, <#irrelevant>, <#ratings>]>
+entities = { "dataset": {}, "method": {} }
+
+
+# Rating attribute: <key: entity_text> = <value: [<#relevant>, <#irrelevant>, <#ratings>, <highlight_type>, <highlight_id>, <paper_id>]>
 ratings = { "dataset": {}, "method": {} }
 categories = ['generated','selected']
 
@@ -29,21 +32,11 @@ relevance_ENUM = { 'relevant': 0, 'irrelevant': 1 }
 
 def main():
 
-  # ######################################### #
-  #      GENERATE FIREBASE DATA STATISTICS    #
-  # ######################################### #
+  # ############################################################## #
+  #      PROCESS DATA FOR RATINGS, HIGHLIGHTS, ENTITIES AND USERS  #
+  # ############################################################## #
 
   data_json = read_json_file(f'data/firebase-{data_date}-coner-viewer-export.json')
-  
-  # highlights_json = data_json['highlights']
-  # ratings_json = data_json['ratings']
-  # rewards_json = data_json['rewards']
-  # users_json = data_json['users']
-
-  # highlights = []
-  
-  # rewards = []
-  # users = []
 
   # Perform some preprocessing and formatting for data attributes
   for key in data_json.keys():
@@ -93,17 +86,40 @@ def main():
       if not highlight_id in highlights[facet].keys(): highlights[facet][highlight_id] = highlight
 
 
-  # !!! CHANGE TO ENTITIES OVERVIEW, NOT NR HIGHLIGHTS BUT NR ENTITIES SELECTED!! (USE RATINGS ARRAY!!)
-
-  # Generate data statistics for 'ratings'
-  print("\n\n###############################")
-  print("##### ENTITIES STATISTICS #####")
-  print("###############################")
-
   total_highlights = []
   for facet in facets:
     total_highlights += highlights[facet].values()
+
+  total_highlights.sort(key=lambda highlight: highlight['metadata']['type'])
+
+  # Process entities results
+  for facet in facets:
+    for highlight in [obj for obj in total_highlights if obj['facet'] == facet]:
+
+      entity = highlight['content']['text'].strip(" \t,-.[]()").lower()
+
+      if not entity in entities[facet].keys(): entities[facet][entity] = { 'type': highlight['metadata']['type'], 'highlight_id': highlight['id'], 'paper_id': highlight['pid'] }
+
+  total_entities = []
+  seen_entities = set() 
+
+  for facet in facets:
+    [seen_entities.add(key) or total_entities.append(obj) for key, obj in entities[facet].items() if key not in seen_entities]
+
+  total_entities.sort(key=lambda entity: entity['type'])
+
+
+  # ####################################################################### #
+  #      WRITE DATA STATISTICS FOR RATINGS, HIGHLIGHTS, ENTITIES AND USERS  #
+  # ####################################################################### #
+
+  # Generate data statistics for 'highlights'
+  print("\n\n################################")
+  print("##### HIGHLIGHTS STATISTICS #####")
+  print("################################")
+
   nr_total_highlights = len(total_highlights)
+
 
   # Generic overview highlights
   print(f'Total highlights: {nr_total_highlights}')  
@@ -112,43 +128,57 @@ def main():
     nr_cat_highlights = len([highlight for highlight in total_highlights if highlight["metadata"]["type"] == cat])
     print(f'"{cat}" highlights: {nr_cat_highlights}/{nr_total_highlights} ({round(float(nr_cat_highlights)/nr_total_highlights*100,1)}%)')  
 
+  # Generate data statistics for 'entities'
+  print("\n\n###############################")
+  print("##### ENTITIES STATISTICS #####")
+  print("###############################")
 
-  # Overview of number highlights for faets and categories
-  print(f'\n\nNumber highlights (<HIGHLIGHT TYPE> - <FACET>): <NUMBER HIGHLIGHTS>\n----------------------------------')
+  nr_total_entities = len(total_entities)
+
+  # Generic overview highlights
+  print(f'Total entities: {nr_total_entities}')  
+
+  for cat in categories:
+    nr_cat_entities = len([entity for entity in total_entities if entity['type'] == cat])
+    print(f'"{cat}" entities: {nr_cat_entities}/{nr_total_entities} ({round(float(nr_cat_entities)/nr_total_entities*100,1)}%)')  
+
+  # Overview of number entities for faets and categories
+  print(f'\n\nNumber entities (<ENTITY TYPE> - <FACET>): <NUMBER entities>\n----------------------------------')
 
   print_columns= []
   for facet in facets:
-    facet_highlights = highlights[facet].values()
-    nr_facet_highlights = len(facet_highlights)
-    print_columns.append([f'<HIGHLIGHT_TYPE>: all', f'<FACET>: {facet}', f'<NUMBER HIGHLIGHTS>: {nr_facet_highlights}/{nr_total_highlights} ({round(float(nr_facet_highlights)/nr_total_highlights*100,1)}% of total highlights)' ])
+    facet_entities = entities[facet].values()
+    nr_facet_entities = len(facet_entities)
+    print_columns.append([f'<ENTITY TYPE>: all', f'<FACET>: {facet}', f'<NUMBER entities>: {nr_facet_entities}/{nr_total_entities} ({round(float(nr_facet_entities)/nr_total_entities*100,1)}% of total entities)' ])
 
     for cat in categories:
-      nr_cat_highlights = len([highlight for highlight in facet_highlights if highlight["metadata"]["type"] == cat])
-      print_columns.append([f'<HIGHLIGHT_TYPE>: {cat}', f'<FACET>: {facet}', f'<NUMBER HIGHLIGHTS>: {nr_cat_highlights}/{nr_facet_highlights} ({round(float(nr_cat_highlights)/nr_facet_highlights*100,1)}% of "{facet}" highlights)']) 
+      nr_cat_entities = len([entity for entity in facet_entities if entity['type'] == cat])
+      print_columns.append([f'<ENTITY TYPE>: {cat}', f'<FACET>: {facet}', f'<NUMBER entities>: {nr_cat_entities}/{nr_facet_entities} ({round(float(nr_cat_entities)/nr_facet_entities*100,1)}% of "{facet}" entities)']) 
 
   for row in print_columns:
     print("{: <30} {: <20} {: <30}".format(*row))
 
-  # Overview of highlight for facets and categories for each paper
-  print(f'\n\n<PAPER ID>: Number highlights (<HIGHLIGHT TYPE> - <FACET>): <NUMBER HIGHLIGHTS>\n----------------------------------')
+  # Overview of entity for facets and categories for each paper
+  print(f'\n\n<PAPER ID>: Number entities (<ENTITY TYPE> - <FACET>): <NUMBER entities>\n----------------------------------')
 
   print_columns= []
   for pid in data_json['highlights'].keys():
-    pid_highlights = data_json['highlights'][pid].values()
-    nr_pid_highlights = len(pid_highlights)
+
+    pid_entities = [entity for entity in total_entities if entity['paper_id'] == pid]
+    nr_pid_entities = len(pid_entities)
     
     for facet in facets:
-      facet_highlights = [highlight for highlight in pid_highlights if highlight['facet'] == facet]
-      nr_facet_highlights = len(facet_highlights)
-      print_columns.append([f'<PAPER ID>: {pid}', f'<HIGHLIGHT_TYPE>: all', f'<FACET>: {facet}', f'<NUMBER HIGHLIGHTS>: {nr_facet_highlights}/{nr_pid_highlights} ({round(float(nr_facet_highlights)/nr_pid_highlights*100,1)}% of paper highlights)' ])
+      facet_entities = [entity for entity in pid_entities if entity['highlight_id'] in highlights[facet].keys()]
+      nr_facet_entities = len(facet_entities)
+      print_columns.append([f'<PAPER ID>: {pid}', f'<ENTITY TYPE>: all', f'<FACET>: {facet}', f'<NUMBER entities>: {nr_facet_entities}/{nr_pid_entities} ({round(float(nr_facet_entities)/nr_pid_entities*100,1)}% of paper entities)' ])
 
       for cat in categories:
-        nr_cat_highlights = len([highlight for highlight in facet_highlights if highlight["metadata"]["type"] == cat])
-        print_columns.append([f'<PAPER ID>: {pid}', f'<HIGHLIGHT_TYPE>: {cat}', f'<FACET>: {facet}', f'<NUMBER HIGHLIGHTS>: {nr_cat_highlights}/{nr_facet_highlights} ({round(float(nr_cat_highlights)/nr_facet_highlights*100,1)}% of paper "{facet}" highlights)']) 
+        nr_cat_entities = len([entity for entity in facet_entities if entity['type'] == cat])
+        print_columns.append([f'<PAPER ID>: {pid}', f'<ENTITY TYPE>: {cat}', f'<FACET>: {facet}', f'<NUMBER entities>: {nr_cat_entities}/{nr_facet_entities} ({round(float(nr_cat_entities)/nr_facet_entities*100,1)}% of paper "{facet}" entities)']) 
 
 
-  # Change sorting of overview highlights data to be written
-  print_columns.sort(key= lambda row: (row[1], row[2]))
+  # Change sorting of overview entities data to be written
+  print_columns.sort(key=lambda row: (row[1], row[2]))
   for row in print_columns:
     print("{: <40} {: <30} {: <20} {: <30}".format(*row))
 
@@ -170,7 +200,7 @@ def main():
   # Overview of ratings for facets and categories
   print(f'\n\nAverage number ratings per entity (<HIGHLIGHT_TYPE> - <FACET>): <NUMBER_RATINGS>\n--------------------------------------------------------------------------------')
 
-  # Calculate average number of ratings for each entity (per facet and highlight type)
+  # Calculate average number of ratings for each entity (per facet and ENTITY TYPE)
   print_columns = []
   for facet in facets:
     print_columns.append([f'<HIGHLIGHT_TYPE>: all', f'<FACET>: {facet}', f'<NUMBER_RATINGS>: {round(float(sum([rating[2] for key, rating in ratings[facet].items()]))/len(ratings[facet].items()),2)}'])    
@@ -227,7 +257,10 @@ def process_ratings(ratings_json):
 
     for key1, group in groups:
       ret_ratings.append(max(list(group), key=lambda rating: rating['version']))
-      
+
+    ret_ratings_raw.sort(key=lambda rating: rating['highlightType'])
+    ret_ratings.sort(key=lambda rating: rating['highlightType'])
+
   return ret_ratings_raw, ret_ratings
 
 
