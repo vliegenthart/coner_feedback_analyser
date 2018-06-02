@@ -71,11 +71,11 @@ def main():
       print_str = f'{key}: {rel}/{total} - {rating[3]}'
       rel_score = float(rel)/total
 
-      # if total > 1:
-      #   if rel_score > 0.5: print(Fore.GREEN, print_str, Style.RESET_ALL, end='\t')
-      #   if rel_score < 0.5: print(Fore.RED, print_str, Style.RESET_ALL, end='\t')
-      # else:
-      #   print(Fore.BLUE, print_str, Style.RESET_ALL, end='\t')
+      if total > 1:
+        if rel_score > 0.5: print(Fore.GREEN, print_str, Style.RESET_ALL, end='\t')
+        if rel_score < 0.5: print(Fore.RED, print_str, Style.RESET_ALL, end='\t')
+      else:
+        print(Fore.BLUE, print_str, Style.RESET_ALL, end='\t')
 
   # Process highlights results
   for pid in data_json['highlights'].keys():
@@ -88,10 +88,14 @@ def main():
 
 
   total_highlights = []
+  total_highlights_obj = {}
   for facet in facets:
     total_highlights += highlights[facet].values()
+    total_highlights_obj.update(highlights[facet])
 
   total_highlights.sort(key=lambda highlight: highlight['metadata']['type'])
+
+
 
   # Process entities results
   for facet in facets:
@@ -120,16 +124,20 @@ def main():
   for rating in ratings_arr:
     users_ratings[rating['uid']].append(rating)
 
-  for uid, user_ratings in users_ratings.items():
+
+  for uid, user_ratings in list(users_ratings.items()):
+    if len(user_ratings) < thres_min_ratings:
+      users_ratings.pop(uid, None)
+      users.pop(uid, None)
+      continue
     user_ratings.sort(key=lambda rating: rating['timestamp'])
 
-  users_ratings_time = { uid : list() for uid in users.keys() if not len(users_ratings[uid]) < thres_min_ratings }
-  users_ratings_time_raw = { uid : list() for uid in users.keys() if not len(users_ratings[uid]) < thres_min_ratings }
+  users_ratings_time = { uid : list() for uid in users.keys() }
+  users_ratings_time_raw = { uid : list() for uid in users.keys() }
+  users_both_facets = { uid : 0 for uid in users.keys() }
+
 
   for uid, user_ratings in users_ratings.items():
-    both_facets = 0
-    if len(user_ratings) < thres_min_ratings: continue
-
     highlights_rated = set([user_ratings[0]['highlightId']])
     rating_chunks = sliding_window(user_ratings,2)
             
@@ -143,20 +151,25 @@ def main():
       if not rat1['pid'] == rat2['pid'] or time_diff > thres_max_rating_time: continue
 
       if rat2['highlightId'] not in highlights_rated: 
-        highlights_rated.add(rat2['highlightId']
-        both_facets +=1
+        highlights_rated.add(rat2['highlightId'])
+        users_both_facets[uid]+=1
 
       users_ratings_time[uid].append(time_diff)
 
-  # print("\n\nPER RATING CLICK")
-  # for uid, times in users_ratings_time_raw.items():
-  #   print(users[uid]['email'], round(float(sum(times))/len(times)), max(times), min(times))
+  # Calculate by taking the time off all ratings, and normalizing for the amount of entities that have been rated twice (for both facets),
+  # because we want time to rate each entity (thus each highlight, because highlights for samen entity text greyed out after both facets rated) instead of time each rating click
+  # Average for all 10 users: 18.6 seconds per entity
+  # !!! CHECKKKK
 
-  print("\n\nPER ENTITY")
+  # [<Average per rating>, <Average per entity>, <max>, <min>]
+  users_ratings_overview = { uid : [0, 0, 0, 0] for uid in users.keys() }
+
   for uid, times in users_ratings_time.items():
-    print(users[uid]['email'], round(float(sum(times))/(len(times)*(len(times)/2)))), max(times), min(times))
+    per_rating = round(float(sum(times))/len(times), 1)
+    double_highlight_ratio = float(len(times))/float(users_both_facets[uid])
+    per_entity = round(float(sum(times))/float((len(times)/float(double_highlight_ratio))), 1)
 
-  return
+    users_ratings_overview[uid] = [per_rating, per_entity, max(times), min(times)]
 
   # ####################################################################### #
   #      WRITE DATA STATISTICS FOR RATINGS, HIGHLIGHTS, ENTITIES AND USERS  #
@@ -168,7 +181,6 @@ def main():
   print("################################")
 
   nr_total_highlights = len(total_highlights)
-
 
   # Generic overview highlights
   print(f'Total highlights: {nr_total_highlights}')  
@@ -192,25 +204,31 @@ def main():
     print(f'"{cat}" entities: {nr_cat_entities}/{nr_total_entities} ({round(float(nr_cat_entities)/nr_total_entities*100,1)}%)')  
 
   # Overview of number entities for faets and categories
-  print(f'\n\nNumber entities (<ENTITY TYPE> - <FACET>): <NUMBER entities>\n----------------------------------')
+  print(f'\n\nNumber entities (<ENTITY TYPE> - <FACET>): <NUMBER ENTITIES>\n------------------------------------------------------------')
 
-  print_columns= []
+  header = [f'<ENTITY TYPE>', f'<FACET>', f'<NUMBER ENTITIES>']
+  print("{: <20} {: <20} {: <30}".format(*header))
+
+  table_data= []
   for facet in facets:
     facet_entities = entities[facet].values()
     nr_facet_entities = len(facet_entities)
-    print_columns.append([f'<ENTITY TYPE>: all', f'<FACET>: {facet}', f'<NUMBER entities>: {nr_facet_entities}/{nr_total_entities} ({round(float(nr_facet_entities)/nr_total_entities*100,1)}% of total entities)' ])
+    table_data.append([f'all', f'{facet}', f'{nr_facet_entities}/{nr_total_entities} ({round(float(nr_facet_entities)/nr_total_entities*100,1)}% of total entities)' ])
 
     for cat in categories:
       nr_cat_entities = len([entity for entity in facet_entities if entity['type'] == cat])
-      print_columns.append([f'<ENTITY TYPE>: {cat}', f'<FACET>: {facet}', f'<NUMBER entities>: {nr_cat_entities}/{nr_facet_entities} ({round(float(nr_cat_entities)/nr_facet_entities*100,1)}% of "{facet}" entities)']) 
+      table_data.append([f'{cat}', f'{facet}', f'{nr_cat_entities}/{nr_facet_entities} ({round(float(nr_cat_entities)/nr_facet_entities*100,1)}% of "{facet}" entities)']) 
 
-  for row in print_columns:
-    print("{: <30} {: <20} {: <30}".format(*row))
+  for row in table_data:
+    print("{: <20} {: <20} {: <30}".format(*row))
 
   # Overview of entity for facets and categories for each paper
-  print(f'\n\n<PAPER ID>: Number entities (<ENTITY TYPE> - <FACET>): <NUMBER entities>\n----------------------------------')
+  print(f'\n\n<PAPER ID>: Number entities (<ENTITY TYPE> - <FACET>): <NUMBER ENTITIES>\n------------------------------------------------------------------------')
 
-  print_columns= []
+  header = [f'<PAPER ID>', f'<ENTITY TYPE>', f'<FACET>', '<NUMBER ENTITIES>']
+  print("{: <30} {: <20} {: <20} {: <30}".format(*header))
+
+  table_data= []
   for pid in data_json['highlights'].keys():
 
     pid_entities = [entity for entity in total_entities if entity['paper_id'] == pid]
@@ -219,17 +237,17 @@ def main():
     for facet in facets:
       facet_entities = [entity for entity in pid_entities if entity['highlight_id'] in highlights[facet].keys()]
       nr_facet_entities = len(facet_entities)
-      print_columns.append([f'<PAPER ID>: {pid}', f'<ENTITY TYPE>: all', f'<FACET>: {facet}', f'<NUMBER entities>: {nr_facet_entities}/{nr_pid_entities} ({round(float(nr_facet_entities)/nr_pid_entities*100,1)}% of paper entities)' ])
+      table_data.append([f'{pid}', f'all', f'{facet}', f'{nr_facet_entities}/{nr_pid_entities} ({round(float(nr_facet_entities)/nr_pid_entities*100,1)}% of paper entities)' ])
 
       for cat in categories:
         nr_cat_entities = len([entity for entity in facet_entities if entity['type'] == cat])
-        print_columns.append([f'<PAPER ID>: {pid}', f'<ENTITY TYPE>: {cat}', f'<FACET>: {facet}', f'<NUMBER entities>: {nr_cat_entities}/{nr_facet_entities} ({round(float(nr_cat_entities)/nr_facet_entities*100,1)}% of paper "{facet}" entities)']) 
+        table_data.append([f'{pid}', f'{cat}', f'{facet}', f'{nr_cat_entities}/{nr_facet_entities} ({round(float(nr_cat_entities)/nr_facet_entities*100,1)}% of paper "{facet}" entities)']) 
 
 
   # Change sorting of overview entities data to be written
-  print_columns.sort(key=lambda row: (row[1], row[2]))
-  for row in print_columns:
-    print("{: <40} {: <30} {: <20} {: <30}".format(*row))
+  table_data.sort(key=lambda row: (row[1], row[2]))
+  for row in table_data:
+    print("{: <30} {: <20} {: <20} {: <30}".format(*row))
 
 
   # Generate data statistics for 'ratings'
@@ -247,32 +265,38 @@ def main():
 
 
   # Overview of ratings for facets and categories
-  print(f'\n\nAverage number ratings per entity (<HIGHLIGHT_TYPE> - <FACET>): <NUMBER_RATINGS>\n--------------------------------------------------------------------------------')
+  print(f'\n\nAverage number ratings per entity (<HIGHLIGHT TYPE> - <FACET>): <NUMBER RATINGS>\n--------------------------------------------------------------------------------')
+
+  header = [f'<HIGHLIGHT TYPE>', f'<FACET>', f'<NUMBER RATINGS>']
+  print("{: <20} {: <20} {: <30}".format(*header))
 
   # Calculate average number of ratings for each entity (per facet and ENTITY TYPE)
-  print_columns = []
+  table_data = []
   for facet in facets:
-    print_columns.append([f'<HIGHLIGHT_TYPE>: all', f'<FACET>: {facet}', f'<NUMBER_RATINGS>: {round(float(sum([rating[2] for key, rating in ratings[facet].items()]))/len(ratings[facet].items()),2)}'])    
+    table_data.append([f'all', f'{facet}', f'{round(float(sum([rating[2] for key, rating in ratings[facet].items()]))/len(ratings[facet].items()),2)}'])    
 
 
     for cat in categories:
       cat_ratings = [rating for key, rating in ratings[facet].items() if rating[3] == cat]
-      print_columns.append([f'<HIGHLIGHT_TYPE>: {cat}', f'<FACET>: {facet}', f'<NUMBER_RATINGS>: {round(float(sum([rating[2] for rating in cat_ratings]))/len(cat_ratings),2)}'])    
+      table_data.append([f'{cat}', f'{facet}', f'{round(float(sum([rating[2] for rating in cat_ratings]))/len(cat_ratings),2)}'])    
 
-  for row in print_columns:
-    print("{: <30} {: <20} {: <30}".format(*row))
+  for row in table_data:
+    print("{: <20} {: <20} {: <30}".format(*row))
 
 
   # Overview of ratings for relevance and FPR
-  print(f'\n\n<HIGHLIGHT_TYPE>: Entities (identified as <FACET>) rated as relevant for <FACET> based on voters majority vote: <RELEVANT>: <RELEVANT>/<TOTAL> (<PERCENTAGE>)')
-  print(f'<HIGHLIGHT_TYPE>: False positives entities (identified as <FACET>) based on voters  majority vote: <FPR>: <FP>/<TOTAL> (<PERCENTAGE>)\n------------------------------------------------------------------------------------------------------------------------------------')
+  print(f'\n\n<HIGHLIGHT TYPE>: Entities (identified as <FACET>) rated as relevant for <FACET> based on voters majority vote: <RELEVANT>: <RELEVANT>/<TOTAL> (<PERCENTAGE>)')
+  print(f'<HIGHLIGHT TYPE>: False positives entities (identified as <FACET>) based on voters  majority vote: <FPR>: <FP>/<TOTAL> (<PERCENTAGE>)\n-------------------------------------------------------------------------------------------------------------------------------------')
 
-  print_columns= []
+  header = [f'<HIGHLIGHT TYPE>', f'<FACET>', f'<RELEVANT>', f'<FPR>']
+  print("{: <20} {: <20} {: <30} {: <30}".format(*header))
+
+  table_data = []
   for facet in facets:
     facet_highlight_ratings = [rating for key, rating in ratings[facet].items() if rating[4] in highlights[facet].keys()]
     nr_rel = sum([1 for rating in facet_highlight_ratings if rating[0] > rating[1]])
     nr_entities = len(facet_highlight_ratings)
-    print_columns.append([f'<HIGHLIGHT_TYPE>: all', f'<FACET>: {facet}', f'<RELEVANT>: {nr_rel}/{nr_entities} ({round(float(nr_rel)/nr_entities*100,1)}%)', f'<FPR>: {nr_entities - nr_rel}/{nr_entities} ({round(float(nr_entities - nr_rel)/nr_entities*100,1)}%)'])    
+    table_data.append([f'all', f'{facet}', f'{nr_rel}/{nr_entities} ({round(float(nr_rel)/nr_entities*100,1)}%)', f'{nr_entities - nr_rel}/{nr_entities} ({round(float(nr_entities - nr_rel)/nr_entities*100,1)}%)'])    
 
     for cat in categories:
       cat_ratings = [rating for key, rating in ratings[facet].items() if rating[3] == cat]
@@ -281,10 +305,10 @@ def main():
       nr_rel = sum([1 for rating in facet_highlight_ratings if rating[0] > rating[1]])
       nr_entities = len(facet_highlight_ratings)
 
-      print_columns.append([f'<HIGHLIGHT_TYPE>: {cat}', f'<FACET>: {facet}', f'<RELEVANT>: {nr_rel}/{nr_entities} ({round(float(nr_rel)/nr_entities*100,1)}%)', f'<FPR>: {nr_entities - nr_rel}/{nr_entities} ({round(float(nr_entities - nr_rel)/nr_entities*100,1)}%)'])    
+      table_data.append([f'{cat}', f'{facet}', f'{nr_rel}/{nr_entities} ({round(float(nr_rel)/nr_entities*100,1)}%)', f'{nr_entities - nr_rel}/{nr_entities} ({round(float(nr_entities - nr_rel)/nr_entities*100,1)}%)'])    
 
-  for row in print_columns:
-    print("{: <30} {: <20} {: <30} {: <30}".format(*row))
+  for row in table_data:
+    print("{: <20} {: <20} {: <30} {: <30}".format(*row))
 
 
   # Generate data statistics for 'users'
@@ -292,13 +316,24 @@ def main():
   print("##### USER STATISTICS #####")
   print("#############################")
 
-  print_columns = []
+  print(f'Total users: {len(users)}')
 
-  for row in print_columns:
-    print("{: <30} {: <20} {: <30}".format(*row))
+  print(f'\n\n<EMAIL> has given <NR RATINGS> ratings for <NR ENTITIES> entities in <NR PAPERS> papers with times (seconds): <AVG RATING TIME>, <AVG ENTITY TIME>, <MAX RATING TIME>, <MIN RATING TIME>\n----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------')
+  
+  header = ['<EMAIL>', '<NR RATINGS>', '<NR ENTITIES>', '<NR PAPERS>', '<AVG RATING TIME>', '<AVG ENTITY TIME>', '<MAX RATING TIME>', '<MIN RATING TIME>']
+  print("{: <45} {: <20} {: <20} {: <20} {: <20} {: <20} {: <20} {: <20}".format(*header))
+
+  table_data = []
 
   for uid, user_ratings in users_ratings.items():
-    print(users[uid]['email'], len(user_ratings))
+    nr_entities = len(set([total_highlights_obj[rating['highlightId']]['content']['text'] for rating in user_ratings]))
+    nr_papers = len(set([rating['pid'] for rating in user_ratings]))
+    table_data.append([users[uid]["email"], len(user_ratings), nr_entities, nr_papers] + users_ratings_overview[uid])
+
+  table_data.sort(key=lambda row: int(row[2]), reverse=True)
+
+  for row in table_data:
+    print("{: <45} {: <20} {: <20} {: <20} {: <20} {: <20} {: <20} {: <20}".format(*row))
 
 
   # TODO
@@ -307,6 +342,14 @@ def main():
   # [X] Nr entities generated vs selected
   # [X] Nr. False positives for generated, Nr. False positives for selected
   # [X] Total percentage relevant vs irrelevant
+
+  # WRITE
+  # CSV with entityText, facet, relevance, other shit.
+  # All entities with ratings 1 file per facet
+  # 1 file relevant for X with all entities and label method or dataset with in title the setting (majority vote at least 2 evaluators)
+  # 1 file irrelevant for X with all entities
+  # per facet file: all assets rated for that facet as relevant or irrelevant with in title the voting setting
+  # General statistics file with sorting settings printed
 
 def process_ratings(ratings_json):
   ret_ratings_raw = []
