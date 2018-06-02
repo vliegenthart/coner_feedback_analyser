@@ -4,10 +4,11 @@
 import json
 import time
 import os
-from config import ROOTPATH, viewer_pids, data_date, facets
+from config import ROOTPATH, viewer_pids, data_date, facets, thres_min_ratings, thres_max_rating_time
 from util_functions import read_json_file
 from colorama import Fore, Back, Style
 from itertools import groupby
+from lib.sliding_window import sliding_window
 
 # TODO
 # - Average entity rating time per paper, user and total
@@ -70,11 +71,11 @@ def main():
       print_str = f'{key}: {rel}/{total} - {rating[3]}'
       rel_score = float(rel)/total
 
-      if total > 1:
-        if rel_score > 0.5: print(Fore.GREEN, print_str, Style.RESET_ALL, end='\t')
-        if rel_score < 0.5: print(Fore.RED, print_str, Style.RESET_ALL, end='\t')
-      else:
-        print(Fore.BLUE, print_str, Style.RESET_ALL, end='\t')
+      # if total > 1:
+      #   if rel_score > 0.5: print(Fore.GREEN, print_str, Style.RESET_ALL, end='\t')
+      #   if rel_score < 0.5: print(Fore.RED, print_str, Style.RESET_ALL, end='\t')
+      # else:
+      #   print(Fore.BLUE, print_str, Style.RESET_ALL, end='\t')
 
   # Process highlights results
   for pid in data_json['highlights'].keys():
@@ -110,16 +111,50 @@ def main():
 
   # Process users results
   users = {}
-  for key, user in data_json['user'].items():
+  for key, user in data_json['users'].items():
     user['id'] = key
-    users[user['email']] = user
+    users[user['id']] = user
 
-  users_ratings = dict.fromkeys(users.keys(), [])
+  users_ratings = { uid : list() for uid in users.keys() }
 
-  print(users_ratings)
+  for rating in ratings_arr:
+    users_ratings[rating['uid']].append(rating)
+
+  for uid, user_ratings in users_ratings.items():
+    user_ratings.sort(key=lambda rating: rating['timestamp'])
+
+  users_ratings_time = { uid : list() for uid in users.keys() if not len(users_ratings[uid]) < thres_min_ratings }
+  users_ratings_time_raw = { uid : list() for uid in users.keys() if not len(users_ratings[uid]) < thres_min_ratings }
+
+  for uid, user_ratings in users_ratings.items():
+    if len(user_ratings) < thres_min_ratings: continue
+
+    highlights_rated = set([user_ratings[0]['highlightId']])
+    rating_chunks = sliding_window(user_ratings,2)
+            
+    # Calculate time between each rating pair's timestamp (ratings sorted on earliest to latest timestamp) 
+    # Only add entity rating time if rating time < max rating threshold (to see if different sessions, or other unaccounted for breaks) and pid the same
+    for rating_pair in rating_chunks:
+      rat1 = rating_pair[0]
+      rat2 = rating_pair[1]
+      time_diff = rat2['timestamp'] - rat1['timestamp']
+
+      if not rat1['pid'] == rat2['pid'] or time_diff > thres_max_rating_time: continue
+
+      if rat2['highlightId'] not in highlights_rated: highlights_rated.add(rat2['highlightId']) or users_ratings_time[uid].append(time_diff)
+
+      users_ratings_time_raw[uid].append(time_diff)
+
+  print("\n\nPER RATING CLICK")
+  for uid, times in users_ratings_time_raw.items():
+    print(users[uid]['email'], round(float(sum(times))/len(times)), max(times), min(times))
+
+  print("\n\nPER ENTITY")
+  for uid, times in users_ratings_time.items():
+    print(users[uid]['email'], round(float(sum(times))/len(times)), max(times), min(times))
+
+
   return
-
-
 
   # ####################################################################### #
   #      WRITE DATA STATISTICS FOR RATINGS, HIGHLIGHTS, ENTITIES AND USERS  #
@@ -250,10 +285,26 @@ def main():
     print("{: <30} {: <20} {: <30} {: <30}".format(*row))
 
 
-  # Nr entities generated vs selected
+  # Generate data statistics for 'users'
+  print("\n\n#############################")
+  print("##### USER STATISTICS #####")
+  print("#############################")
+
+  print_columns = []
+
+  for row in print_columns:
+    print("{: <30} {: <20} {: <30}".format(*row))
+
+  for uid, user_ratings in users_ratings.items():
+    print(users[uid]['email'], len(user_ratings))
+
+
+  # TODO
   # Interannotator agreement generated vs selected
-  # Nr. False positives for generated, Nr. False positives for selected
-  # Total percentage relevant vs irrelevant
+  # Average entity rating time per user and total
+  # [X] Nr entities generated vs selected
+  # [X] Nr. False positives for generated, Nr. False positives for selected
+  # [X] Total percentage relevant vs irrelevant
 
 def process_ratings(ratings_json):
   ret_ratings_raw = []
