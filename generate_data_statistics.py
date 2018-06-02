@@ -108,6 +108,18 @@ def main():
 
   total_entities.sort(key=lambda entity: entity['type'])
 
+  # Process users results
+  users = {}
+  for key, user in data_json['user'].items():
+    user['id'] = key
+    users[user['email']] = user
+
+  users_ratings = dict.fromkeys(users.keys(), [])
+
+  print(users_ratings)
+  return
+
+
 
   # ####################################################################### #
   #      WRITE DATA STATISTICS FOR RATINGS, HIGHLIGHTS, ENTITIES AND USERS  #
