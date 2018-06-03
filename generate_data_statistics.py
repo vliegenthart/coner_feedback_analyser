@@ -21,7 +21,6 @@ from lib.sliding_window import sliding_window
 
 # Highlight attribute: <key: highlight_id> = <value: <highlight attributes>>
 highlights = { "dataset": {}, "method": {} }
-
 entities = { "dataset": {}, "method": {} }
 
 
@@ -38,6 +37,7 @@ def main():
   # ############################################################## #
 
   data_json = read_json_file(f'data/firebase-{data_date}-coner-viewer-export.json')
+  paper_ids = data_json['highlights'].keys()
 
   # Perform some preprocessing and formatting for data attributes
   for key in data_json.keys():
@@ -78,7 +78,7 @@ def main():
         print(Fore.BLUE, print_str, Style.RESET_ALL, end='\t')
 
   # Process highlights results
-  for pid in data_json['highlights'].keys():
+  for pid in paper_ids:
 
     for highlight_id, highlight in data_json['highlights'][pid].items():
       facet = highlight['metadata']['facet']
@@ -94,8 +94,6 @@ def main():
     total_highlights_obj.update(highlights[facet])
 
   total_highlights.sort(key=lambda highlight: highlight['metadata']['type'])
-
-
 
   # Process entities results
   for facet in facets:
@@ -133,8 +131,10 @@ def main():
     user_ratings.sort(key=lambda rating: rating['timestamp'])
 
   users_ratings_time = { uid : list() for uid in users.keys() }
-  users_ratings_time_raw = { uid : list() for uid in users.keys() }
   users_both_facets = { uid : 0 for uid in users.keys() }
+
+  papers_ratings_time = { pid : list() for pid in paper_ids }
+  papers_both_facets = { pid : 0 for pid in paper_ids }
 
 
   for uid, user_ratings in users_ratings.items():
@@ -153,8 +153,10 @@ def main():
       if rat2['highlightId'] not in highlights_rated: 
         highlights_rated.add(rat2['highlightId'])
         users_both_facets[uid]+=1
+        papers_both_facets[rat2['pid']]+=1
 
       users_ratings_time[uid].append(time_diff)
+      papers_ratings_time[rat2['pid']].append(time_diff)
 
   # Calculate by taking the time off all ratings, and normalizing for the amount of entities that have been rated twice (for both facets),
   # because we want time to rate each entity (thus each highlight, because highlights for samen entity text greyed out after both facets rated) instead of time each rating click
@@ -163,6 +165,7 @@ def main():
 
   # [<Average per rating>, <Average per entity>, <max>, <min>]
   users_ratings_overview = { uid : [0, 0, 0, 0] for uid in users.keys() }
+  papers_ratings_overview = { pid : [0, 0, 0, 0] for pid in paper_ids }
 
   for uid, times in users_ratings_time.items():
     per_rating = round(float(sum(times))/len(times), 1)
@@ -170,6 +173,14 @@ def main():
     per_entity = round(float(sum(times))/float((len(times)/float(double_highlight_ratio))), 1)
 
     users_ratings_overview[uid] = [per_rating, per_entity, max(times), min(times)]
+
+  for pid, times in papers_ratings_time.items():
+    per_rating = round(float(sum(times))/len(times), 1)
+    double_highlight_ratio = float(len(times))/float(papers_both_facets[pid])
+    per_entity = round(float(sum(times))/float((len(times)/float(double_highlight_ratio))), 1)
+
+    papers_ratings_overview[pid] = [per_rating, per_entity, max(times), min(times)]
+
 
   # ####################################################################### #
   #      WRITE DATA STATISTICS FOR RATINGS, HIGHLIGHTS, ENTITIES AND USERS  #
@@ -229,7 +240,7 @@ def main():
   print("{: <30} {: <20} {: <20} {: <30}".format(*header))
 
   table_data= []
-  for pid in data_json['highlights'].keys():
+  for pid in paper_ids:
 
     pid_entities = [entity for entity in total_entities if entity['paper_id'] == pid]
     nr_pid_entities = len(pid_entities)
@@ -317,6 +328,8 @@ def main():
   print("#############################")
 
   print(f'Total users: {len(users)}')
+  print(f'Users\' average rating time: {float(sum([int(user[0]) for key, user in users_ratings_overview.items()]))/len(users.keys())}')
+  print(f'Users\' average entity rating time: {float(sum([int(user[1]) for key, user in users_ratings_overview.items()]))/len(users.keys())}')
 
   print(f'\n\n<EMAIL> has given <NR RATINGS> ratings for <NR ENTITIES> entities in <NR PAPERS> papers with times (seconds): <AVG RATING TIME>, <AVG ENTITY TIME>, <MAX RATING TIME>, <MIN RATING TIME>\n----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------')
   
@@ -336,9 +349,23 @@ def main():
     print("{: <45} {: <20} {: <20} {: <20} {: <20} {: <20} {: <20} {: <20}".format(*row))
 
 
+  print(f'\n\n<PAPERID>: <AVG RATING TIME> time (seconds) and <AVG ENTITY TIME> time (seconds)\n--------------------------------------------------------------------------------')
+
+  header = ['<PAPER_ID>', '<AVG RATING TIME>', '<AVG ENTITY TIME>']
+  print("{: <30} {: <20} {: <20}".format(*header))
+
+  table_data = []
+  for pid, paper_ratings in papers_ratings_overview.items(): table_data.append([pid] + paper_ratings[0:2])
+  
+  table_data.sort(key=lambda row: int(row[1]), reverse=True)
+
+  for row in table_data:
+    print("{: <30} {: <20} {: <20}".format(*row))
+
+
   # TODO
   # Interannotator agreement generated vs selected
-  # Average entity rating time per user and total
+  # Average entity rating time per user and total/per paper!!!!!!!!!!
   # [X] Nr entities generated vs selected
   # [X] Nr. False positives for generated, Nr. False positives for selected
   # [X] Total percentage relevant vs irrelevant
