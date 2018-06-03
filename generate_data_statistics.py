@@ -9,6 +9,7 @@ from util_functions import read_json_file
 from colorama import Fore, Back, Style
 from itertools import groupby
 from lib.sliding_window import sliding_window
+import datetime
 
 # TODO
 # - Average entity rating time per paper, user and total
@@ -31,6 +32,8 @@ categories = ['generated','selected']
 relevance_ENUM = { 'relevant': 0, 'irrelevant': 1 }
 
 def main():
+
+  print(f'{datetime.datetime.now()}: DATA ANALYTICS')
 
   # ############################################################## #
   #      PROCESS DATA FOR RATINGS, HIGHLIGHTS, ENTITIES AND USERS  #
@@ -362,7 +365,6 @@ def main():
   for row in table_data:
     print("{: <30} {: <20} {: <20}".format(*row))
 
-
   # TODO
   # Interannotator agreement generated vs selected
   # Average entity rating time per user and total/per paper!!!!!!!!!!
@@ -377,6 +379,11 @@ def main():
   # 1 file irrelevant for X with all entities
   # per facet file: all assets rated for that facet as relevant or irrelevant with in title the voting setting
   # General statistics file with sorting settings printed
+
+
+def print(line):
+  with open('results/data_statistics_data_from_24_05_2018.txt', 'a') as out:
+    out.write(line + '\n')
 
 def process_ratings(ratings_json):
   ret_ratings_raw = []
