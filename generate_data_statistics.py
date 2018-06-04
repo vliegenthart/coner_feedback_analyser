@@ -26,6 +26,7 @@ import re
 # - WRITE: General statistics file with sorting settings printed
 # - Clean up code & add comments & split up each processing & writing category for highlights, entities, ratings and users
 #   in separate methods and/or files
+# - UPDATE README
 
 # WRITE
 # All entities with ratings 1 file per facet
@@ -56,7 +57,7 @@ def main():
   #      PROCESS DATA FOR RATINGS, HIGHLIGHTS, ENTITIES AND USERS  #
   # ############################################################## #
 
-  data_json = read_json_file(f'data/firebase-{data_date}-coner-viewer-export.json')
+  data_json = read_json_file(f'data/firebase-{data_date.replace("_", "-")}-coner-viewer-export.json')
   paper_ids = data_json['highlights'].keys()
 
   # Perform some preprocessing and formatting for data attributes
@@ -101,19 +102,6 @@ def main():
       ratings[facet][entity][relevance_ENUM[rating['relevance']]] += 1
 
     write_entities_overview_csv(facet, ratings[facet].items())
-    # Print entities with ratings in colors
-    # for key, rating in sorted(ratings[facet].items()):
-    #   rel = rating[0]
-    #   total = rating[2]
-
-    #   print_str = f'{key}: {rel}/{total} - {rating[3]}'
-    #   rel_score = float(rel)/total
-
-    #   if total > 1:
-    #     if rel_score > 0.5: print(Fore.GREEN, print_str, Style.RESET_ALL, end='\t')
-    #     if rel_score < 0.5: print(Fore.RED, print_str, Style.RESET_ALL, end='\t')
-    #   else:
-    #     print(Fore.BLUE, print_str, Style.RESET_ALL, end='\t')
 
   # Process entities results
   for facet in facets:
@@ -383,11 +371,11 @@ def main():
   for row in table_data:
     print_file("{: <30} {: <20} {: <20}".format(*row))
 
-  print(f'Wrote data statistics to "results/data_statistics_{data_date.replace("-", "_")}.txt"')
+  print(f'Wrote data statistics to "results/data_statistics_{data_date}.txt"')
 
 def write_entities_overview_csv(facet, entities):
   column_names = ['entity', 'relevance', 'relevance_score', 'ratings_relevant', 'ratings_total', 'type']
-  file_path = f'results/entities_overview_{facet}_{data_date.replace("-", "_")}.csv'
+  file_path = f'results/entities_overview_{facet}_{data_date}.csv'
   os.makedirs(os.path.dirname(file_path), exist_ok=True)
 
   with open(file_path, 'w+') as outputFile:
@@ -403,7 +391,7 @@ def write_entities_overview_csv(facet, entities):
       temp = [entity_text, get_relevance(rel_score, total), rel_score, rel, total, entity_info[3]]
       csv_out.writerow(temp)
 
-    print(f'Wrote {facet} entity ratings overview to "results/entities_overview_{facet}_{data_date.replace("-", "_")}.csv"')
+    print(f'Wrote {facet} entity ratings overview to "results/entities_overview_{facet}_{data_date}.csv"')
 
 # Relevance is based on majority vote is 2 or more ratings for facet
 def get_relevance(score, total):
@@ -416,7 +404,7 @@ def get_relevance(score, total):
 
 def print_file(line):
 
-  with open(f'results/data_statistics_{data_date.replace("-", "_")}.txt', 'a') as out:
+  with open(f'results/data_statistics_{data_date}.txt', 'a') as out:
     out.write(line + '\n')
 
 def process_ratings(ratings_json):
