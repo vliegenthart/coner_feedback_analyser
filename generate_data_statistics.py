@@ -48,7 +48,9 @@ categories = ['generated','selected']
 relevance_ENUM = { 'relevant': 0, 'irrelevant': 1 }
 
 def main():
-  print_file(f'{"{0:%Y-%m-%d %H:%M:%S}".format(datetime.datetime.now())} -> DATA STATISTICS')
+  print_file("\n\n-------------------------------------------------")
+  print_file(f'-     {"{0:%Y-%m-%d %H:%M:%S}".format(datetime.datetime.now())} - DATA STATISTICS     -')
+  print_file("-------------------------------------------------")
 
   # ############################################################## #
   #      PROCESS DATA FOR RATINGS, HIGHLIGHTS, ENTITIES AND USERS  #
@@ -66,13 +68,32 @@ def main():
 
         data_obj['firebase_id'] = firebase_id
   
-  # Process and print ratings results
+
+  # Process highlights results
+  for pid in paper_ids:
+
+    for highlight_id, highlight in data_json['highlights'][pid].items():
+      facet = highlight['metadata']['facet']
+      highlight['facet'] = facet
+      highlight['id'] = highlight_id
+      if not highlight_id in highlights[facet].keys(): highlights[facet][highlight_id] = highlight
+
+
+  total_highlights = []
+  total_highlights_obj = {}
+  for facet in facets:
+    total_highlights += highlights[facet].values()
+    total_highlights_obj.update(highlights[facet])
+
+  total_highlights.sort(key=lambda highlight: highlight['metadata']['type'])
+
+  # Process ratings results
   ratings_raw_arr, ratings_arr = process_ratings(data_json['ratings'])
 
   for facet in facets:
     for rating in [obj for obj in ratings_arr if obj['facet'] == facet]:
 
-      entity = re.sub(" +", " ", rating['entityText'].strip(" \t,-.[]()").lower())
+      entity = re.sub(" +", " ", total_highlights_obj[rating['highlightId']]['content']['text'].strip(" \t,-.[]()").lower())
 
       if not entity in ratings[facet].keys(): ratings[facet][entity] = [0,0,0, rating['highlightType'], rating['highlightId'], rating['pid']]
 
@@ -93,24 +114,6 @@ def main():
     #     if rel_score < 0.5: print(Fore.RED, print_str, Style.RESET_ALL, end='\t')
     #   else:
     #     print(Fore.BLUE, print_str, Style.RESET_ALL, end='\t')
-
-  # Process highlights results
-  for pid in paper_ids:
-
-    for highlight_id, highlight in data_json['highlights'][pid].items():
-      facet = highlight['metadata']['facet']
-      highlight['facet'] = facet
-      highlight['id'] = highlight_id
-      if not highlight_id in highlights[facet].keys(): highlights[facet][highlight_id] = highlight
-
-
-  total_highlights = []
-  total_highlights_obj = {}
-  for facet in facets:
-    total_highlights += highlights[facet].values()
-    total_highlights_obj.update(highlights[facet])
-
-  total_highlights.sort(key=lambda highlight: highlight['metadata']['type'])
 
   # Process entities results
   for facet in facets:
