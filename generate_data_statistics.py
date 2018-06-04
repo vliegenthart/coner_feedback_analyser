@@ -403,8 +403,10 @@ def get_relevance(score, total):
   return 'neutral'
 
 def print_file(line):
+  file_path = f'results/data_statistics_{data_date}.txt'
+  os.makedirs(os.path.dirname(file_path), exist_ok=True)
 
-  with open(f'results/data_statistics_{data_date}.txt', 'a') as out:
+  with open(file_path, 'a') as out:
     out.write(line + '\n')
 
 def process_ratings(ratings_json):
@@ -426,7 +428,6 @@ def process_ratings(ratings_json):
     ret_ratings.sort(key=lambda rating: rating['highlightType'])
 
   return ret_ratings_raw, ret_ratings
-
 
 # Write the array of highlights to json file
 def write_rewards_json(rewards):
