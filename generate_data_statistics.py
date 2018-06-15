@@ -357,10 +357,10 @@ def main():
 
 
   # Overview of ratings for relevance and FPR
-  print_file(f'\n\n<HIGHLIGHT TYPE>: Entities (identified as <FACET>) rated as relevant for <FACET> based on voters majority vote: <RELEVANT RATE>: <RELEVANT>/<TOTAL> (<PERCENTAGE 1>)')
-  print_file(f'<HIGHLIGHT TYPE>: False positives entities (identified as <FACET>) based on voters majority vote: <FPR>: <FP>/<TOTAL> (<PERCENTAGE 2>)')
-  print_file(f'<HIGHLIGHT TYPE>: Entities with 2 or more ratings as "{facet}" to determine majority vote: <ENTITIES 2+ RATINGS RATE>: <ENTITIES 2+ RATINGS>/<TOTAL> (<PERCENTAGE 3>)\n-------------------------------------------------------------------------------------------------------------------------------------')
-  
+  print_file(f'\n\n<HIGHLIGHT TYPE>: Entities (identified as <FACET> and rated as relevant for <FACET>) based on voters majority vote: <RELEVANT RATE>: <RELEVANT>/<TOTAL> (<PERCENTAGE 1>)')
+  print_file(f'<HIGHLIGHT TYPE>: False positives entities (NOT identified as <FACET> and rated as relevant for <FACET>) based on voters majority vote: <FPR>: <FP>/<TOTAL> (<PERCENTAGE 2>)')
+  print_file(f'<HIGHLIGHT TYPE>: Entities with 2 or more ratings as <FACET> to determine majority vote: <ENTITIES 2+ RATINGS RATE>: <ENTITIES 2+ RATINGS>/<TOTAL> (<PERCENTAGE 3>)\n-------------------------------------------------------------------------------------------------------------------------------------')
+
   header = [f'<HIGHLIGHT TYPE>', f'<FACET>', f'<RELEVANT RATE>', f'<FPR>', '<ENTITIES 2+ RATINGS RATE>']
   print_file("{: <20} {: <20} {: <30} {: <30} {: <30}".format(*header))
 
@@ -403,6 +403,8 @@ def main():
   rating_counter = 0
   for pid in paper_ids:
     for uid in users.keys():
+      local_user_paper_ratings = users_papers_ratings_overview[uid][pid]
+      if local_user_paper_ratings[2] < 0 or local_user_paper_ratings[6] < 0: continue
       total_rating_time += users_papers_ratings_overview[uid][pid][2]
       total_rating_perc += users_papers_ratings_overview[uid][pid][6]
       rating_counter +=1
