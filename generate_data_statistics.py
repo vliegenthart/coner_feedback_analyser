@@ -552,7 +552,11 @@ def create_set(arr, uid, pid, obj):
   return set(arr)
 
 def process_entity(entity_text):
-  return re.sub(" +", " ", entity_text.strip(" \t,-.[]()").lower())
+  new_entity = re.sub(" +", " ", entity_text.strip(" \t,-.[]()").lower())
+  new_entity = re.sub("- ", "-", new_entity)
+  new_entity = re.sub(" -", "-", new_entity)
+
+  return new_entity
 
 if __name__=='__main__':
   main()
