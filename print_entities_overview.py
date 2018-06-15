@@ -5,7 +5,7 @@ import json
 import time
 import os
 import os.path
-from config import ROOTPATH, viewer_pids, data_date, facets, thres_min_ratings, thres_max_rating_time
+from config import ROOTPATH, viewer_pids, data_date, facets, thres_min_ratings, thres_max_rating_time, seedsize
 from colorama import Fore, Back, Style
 import csv
 import datetime
@@ -24,14 +24,14 @@ def main():
   # ############################################ #
 
   for facet in facets:
-    print_file(facet, "\n\n---------------------------------------------------")
-    print_file(facet, f'-     {"{0:%Y-%m-%d %H:%M:%S}".format(datetime.datetime.now())} - ENTITIES OVERVIEW     -')
-    print_file(facet, "---------------------------------------------------")
+    print_file(facet, seedsize, "\n\n---------------------------------------------------")
+    print_file(facet, seedsize, f'-     {"{0:%Y-%m-%d %H:%M:%S}".format(datetime.datetime.now())} - ENTITIES OVERVIEW     -')
+    print_file(facet, seedsize, "---------------------------------------------------")
 
     print(f'\n\nEntities overview for "{facet}" facet:')
-    print_file(facet, f'\n\nEntities overview for "{facet}" facet:')
+    print_file(facet, seedsize, f'\n\nEntities overview for "{facet}" facet:')
 
-    entities = read_overview_csv(facet)
+    entities = read_overview_csv(facet, seedsize)
     header = [f'<{column.upper()}>' for column in entities.pop(0)]
     entity_trunc = 50
 
@@ -40,24 +40,23 @@ def main():
       entity[0] = "\n ".join([entity_string[i:i+entity_trunc] for i in range(0, len(entity_string), entity_trunc)])
 
     print("", "{: <50} {: <20} {: <20} {: <20} {: <20} {: <20}".format(*header))
-    print_file(facet, " {: <50} {: <20} {: <20} {: <20} {: <20} {: <20}".format(*header))
+    print_file(facet, seedsize, " {: <50} {: <20} {: <20} {: <20} {: <20} {: <20}".format(*header))
 
     for row in entities:
       color = rel_color_ENUM[row[1]]
       print(color, "{: <50} {: <20} {: <20} {: <20} {: <20} {: <20}".format(*row), Style.RESET_ALL)
-      print_file(facet, " {: <50} {: <20} {: <20} {: <20} {: <20} {: <20}".format(*row))
+      print_file(facet, seedsize, " {: <50} {: <20} {: <20} {: <20} {: <20} {: <20}".format(*row))
 
 # Read papers and number entities overview file
-def read_overview_csv(facet):
-  file_path = f'results/entities_overview_{facet}_{data_date}.csv'
+def read_overview_csv(facet, seedsize):
+  file_path = f'results/entities_overview_{facet}_{seedsize}_{data_date}.csv'
   csv_raw = open(file_path, 'r').readlines()
   csv_raw = [line.rstrip('\n').split(',') for line in csv_raw]
   
   return csv_raw
 
-
-def print_file(facet, line):
-  file_path = f'results/entities_overview_{facet}_{data_date}.txt'
+def print_file(facet, seedsize, line):
+  file_path = f'results/entities_overview_{facet}_{seedsize}_{data_date}.txt'
   os.makedirs(os.path.dirname(file_path), exist_ok=True)
 
   with open(file_path, 'a') as out:

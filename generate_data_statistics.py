@@ -5,7 +5,7 @@ import json
 import time
 import os
 import os.path
-from config import ROOTPATH, viewer_pids, data_date, facets, thres_min_ratings, thres_max_rating_time
+from config import ROOTPATH, viewer_pids, data_date, facets, thres_min_ratings, thres_max_rating_time, seedsize
 from util_functions import read_json_file
 from colorama import Fore, Back, Style
 from itertools import groupby
@@ -107,7 +107,7 @@ def main():
       ratings[facet][entity][2] += 1
       ratings[facet][entity][relevance_ENUM[rating['relevance']]] += 1
 
-    write_entities_overview_csv(facet, ratings[facet].items())
+    write_entities_overview_csv(facet, seedsize, ratings[facet].items())
 
   # Process entities results
   for facet in facets:
@@ -478,9 +478,9 @@ def main():
 
   print(f'Wrote data statistics to "results/data_statistics_{data_date}.txt"')
 
-def write_entities_overview_csv(facet, entities):
+def write_entities_overview_csv(facet, seedsize, entities):
   column_names = ['entity', 'relevance', 'relevance_score', 'ratings_relevant', 'ratings_total', 'type']
-  file_path = f'results/entities_overview_{facet}_{data_date}.csv'
+  file_path = f'results/entities_overview_{facet}_{seedsize}_{data_date}.csv'
   os.makedirs(os.path.dirname(file_path), exist_ok=True)
 
   with open(file_path, 'w+') as outputFile:
@@ -496,7 +496,7 @@ def write_entities_overview_csv(facet, entities):
       temp = [entity_text, get_relevance(rel_score, total), rel_score, rel, total, entity_info[3]]
       csv_out.writerow(temp)
 
-    print(f'Wrote {facet} entity ratings overview to "results/entities_overview_{facet}_{data_date}.csv"')
+    print(f'Wrote {facet} entity ratings overview to "results/entities_overview_{facet}_{seedsize}_{data_date}.csv"')
 
 # Relevance is based on majority vote is 2 or more ratings for facet
 def get_relevance(score, total):
