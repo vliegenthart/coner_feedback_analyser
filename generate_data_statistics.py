@@ -126,7 +126,7 @@ def main():
   seen_entities = set() 
 
   for facet in facets:
-    [seen_entities.add(key) or total_entities.append(obj) for key, obj in entities[facet].items() if key not in seen_entities]
+    [seen_entities.add(key) or (not obj.update({'entity_text': key}) and total_entities.append(obj)) for key, obj in entities[facet].items() if key not in seen_entities]
 
   total_entities.sort(key=lambda entity: entity['type'])
 
@@ -280,6 +280,14 @@ def main():
   header = [f'<ENTITY TYPE>', f'<FACET>', f'<NUMBER ENTITIES>']
   print_file("{: <20} {: <20} {: <30}".format(*header))
 
+  both_facets_entities = []
+  for entity in total_entities:
+    both_facets = True
+    for facet in facets:
+      if not entity['entity_text'] in list(entities[facet].keys()): both_facets = False
+
+    if both_facets: both_facets_entities.append(entity)
+
   table_data= []
   for facet in facets:
     facet_entities = entities[facet].values()
@@ -289,6 +297,14 @@ def main():
     for cat in categories:
       nr_cat_entities = len([entity for entity in facet_entities if entity['type'] == cat])
       table_data.append([f'{cat}', f'{facet}', f'{nr_cat_entities}/{nr_facet_entities} ({round(float(nr_cat_entities)/nr_facet_entities*100,1)}% of "{facet}" entities)']) 
+
+  # Add additional entry for entities recognized as both
+  nr_both_facets_entities = len(both_facets_entities)
+  table_data.append([f'all', 'BOTH', f'{nr_both_facets_entities}/{nr_total_entities} ({round(float(nr_both_facets_entities)/nr_total_entities*100,1)}% of total entities)' ])
+
+  for cat in categories:
+    nr_cat_entities = len([entity for entity in both_facets_entities if entity['type'] == cat])
+    table_data.append([f'{cat}', 'BOTH', f'{nr_cat_entities}/{nr_both_facets_entities} ({round(float(nr_cat_entities)/nr_both_facets_entities*100,1)}% of "{facet}" entities)']) 
 
   for row in table_data:
     print_file("{: <20} {: <20} {: <30}".format(*row))
