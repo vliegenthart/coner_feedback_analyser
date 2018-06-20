@@ -47,6 +47,8 @@ def main():
       print(color, "{: <50} {: <20} {: <20} {: <20} {: <20} {: <20}".format(*row), Style.RESET_ALL)
       print_file(facet, seedsize, " {: <50} {: <20} {: <20} {: <20} {: <20} {: <20}".format(*row))
 
+    generate_entity_lists(facet, seedsize, entities)
+
 # Read papers and number entities overview file
 def read_overview_csv(facet, seedsize):
   file_path = f'results/entities_overview_{facet}_{seedsize}_{data_date}.csv'
@@ -55,12 +57,32 @@ def read_overview_csv(facet, seedsize):
   
   return csv_raw
 
+
 def print_file(facet, seedsize, line):
   file_path = f'results/entities_overview_{facet}_{seedsize}_{data_date}.txt'
   os.makedirs(os.path.dirname(file_path), exist_ok=True)
 
   with open(file_path, 'a') as out:
     out.write(line + '\n')
+
+def generate_entity_lists(facet, seedsize, entities, iteration=0):
+  rel_labels = ['irrelevant', 'relevant']
+  for label in rel_labels:
+    file_path = f'results/{facet}_{seedsize}_coner_{label}_entities_{iteration}.txt'
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
+    with open(file_path, 'w') as out:
+      for entity in entities:
+        if entity[1] == label: out.write(entity[0] + '\n')
+
+  file_path = f'results/{facet}_{seedsize}_coner_all_entities_{iteration}.txt'
+  os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
+  with open(file_path, 'w') as out:
+    for entity in entities:
+        out.write(entity[0] + '\n')
+
+  print("Wrote entity lists for all facets in 'results/' directory")
 
 if __name__=='__main__':
   main()
