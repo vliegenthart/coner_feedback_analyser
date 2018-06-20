@@ -5,7 +5,7 @@ import json
 import time
 import os
 import os.path
-from config import ROOTPATH, viewer_pids, data_date, facets, thres_min_ratings, thres_max_rating_time, seedsize
+from config import ROOTPATH, viewer_pids, data_date, facets, thres_min_ratings, thres_max_rating_time, seedsize, downloaded_conf, tse_ner_conferences
 from util_functions import read_json_file
 from colorama import Fore, Back, Style
 from itertools import groupby
@@ -247,9 +247,30 @@ def main():
   # ####################################################################### #
 
   # Generate data statistics for 'highlights'
-  print_file("\n\n################################")
+  print_file("\n\n################################################")
+  print_file("##### PAPERS EVALUATION DATASET STATISTICS #####")
+  print_file("################################################")
+
+  header = [f'<CONFERENCE>', f'<TOTAL PAPERS>', f'<LIMITED PAPERS CONFERENCE>', f'<PAPERS CONFERENCE>']
+  print_file("{: <30} {: <20} {: <30} {: <30}".format(*header))
+
+  table_data= []
+
+  counter = 0
+  
+  for conf in tse_ner_conferences:
+    amount = downloaded_conf[conf][-1]
+    if amount > 2100: amount = 2100
+    counter += amount
+    table_data.append([conf, counter, amount, downloaded_conf[conf][-1]])
+
+  for row in table_data:
+    print_file("{: <30} {: <20} {: <30} {: <30}".format(*row))
+
+  # Generate data statistics for 'highlights'
+  print_file("\n\n#################################")
   print_file("##### HIGHLIGHTS STATISTICS #####")
-  print_file("################################")
+  print_file("#################################")
 
   nr_total_highlights = len(total_highlights)
 
