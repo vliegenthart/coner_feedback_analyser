@@ -5,6 +5,7 @@ config.py
 .DS_Store
 **/*/.DS_Store
 results/
+results_old/
 
 
 # Byte-compiled / optimized / DLL files

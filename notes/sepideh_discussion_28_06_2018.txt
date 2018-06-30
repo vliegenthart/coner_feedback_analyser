@@ -1,0 +1,35 @@
+Interactive learning -> Check how it works
+Ucertaintly sampling -> Check how it works, but we have too much noise and too little data, so doesnt make sense
+IUI papers: deadline paper submission september/august. Intelligent User Interfaces -> http://iui.acm.org/2019/call_for_papers.html
+Alessandro said to submit to iswc: But deadline over -> http://www.wikicfp.com/cfp/program?id=1769&f=International%20Semantic%20Web%20Conference
+
+Add to seed terms, sxtract new sentences, THEN run term_sentence_expansion to improve expansion...
+
+Use Human annotated sentences more smartply
+
+Focus more on the Coner viewer value:
+Current solutions: 
+1. https://prodi.gy/ -> Prodigy only show sentence, extracted entity and than rate yes or no. From makers of spacy.io
+2. https://spacy.io/
+Coner brings all extracted entities into context of the whole paper, easy to interact, easy to rate for multiple facets AND can select new entities
+
+So instead of focusing thesis RQ just on improving expansion and filtering of Coner, also focus on the IUI of Coner, how it can improve
+human entity feedback now and in future work, where you only highlight entities that have a big impact to get feedback on.
+
+1 of the focuses: Smart selection of entities, to make the human feedback more scalable, so make every human rating more valuable.
+
+So for TSE-NER 2 things:
+1. Fix current expansion improvement approach: add relevant entities to seeds, then extract training sentences, then run term expansion etc and see difference!
+2. Use sentences with relevant or irrelevant entities with feedback from Viewer:
+    - Take sentence, and label entities in these sentences
+    - Find similar sentences for relevant: than entities in these sentences also positively labeled
+    - Find similar sentences for irrelevant: Then entities negative.
+    - READ TSE-NER PAPER!!
+    - Just grab all sentences from the ES index with coner entities in them!!
+    - CHECK: How many coner entities ALREADY in seed set?
+
+Describe these approaches in evaluation how TSE-NER and Coner work together.
+
+
+Ask christoph: how much help can I ask for.
+

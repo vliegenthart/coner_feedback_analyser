@@ -13,6 +13,7 @@ from lib.sliding_window import sliding_window
 import datetime
 import csv
 import re
+from nltk.stem.wordnet import WordNetLemmatizer
 
 # TODO
 # - [X} Average entity rating time per paper, user and total
@@ -573,9 +574,22 @@ def create_set(arr, uid, pid, obj):
   return set(arr)
 
 def process_entity(entity_text):
-  new_entity = re.sub(" +", " ", entity_text.strip(" \t,-.[]()").lower())
+  new_entity = re.sub(" +", " ", entity_text.strip(" \t,-.[]()\n").lower())
   new_entity = re.sub("- ", "-", new_entity)
   new_entity = re.sub(" -", "-", new_entity)
+  new_entity = re.sub("\(", "", new_entity)
+  new_entity = re.sub("\)", "", new_entity)
+  new_entity = re.sub('\n', "", new_entity)
+
+
+  # Slight difference in selected text ’ and normal '
+  new_entity = re.sub("\' ", " ", new_entity)
+  new_entity = re.sub("’ ", " ", new_entity)
+  new_entity = re.sub("\'s", "", new_entity)
+  new_entity = re.sub("’s", "", new_entity)
+
+  lmtzr = WordNetLemmatizer()
+  # new_entity = " ".join([lmtzr.lemmatize(word) for word in new_entity.split(" ")])
 
   return new_entity
 
