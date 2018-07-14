@@ -98,6 +98,8 @@ def main():
   # Process ratings results
   ratings_raw_arr, ratings_arr = process_ratings(data_json['ratings'])
 
+  write_ratings_overview_csv(seedsize, ratings_arr)
+
   for facet in facets:
     for rating in [obj for obj in ratings_arr if obj['facet'] == facet]:
 
@@ -123,8 +125,24 @@ def main():
       if not entity in papers_entities[facet][pid].keys():
         papers_entities[facet][pid][entity] = { 'type': highlight['metadata']['type'], 'highlight_id': highlight['id'], 'paper_id': pid }
 
+
   total_entities = []
   seen_entities = set() 
+
+  dataset_ner = [ent for (ent, info) in entities['dataset'].items() if info['type'] == 'generated']
+  dataset_user = [ent for (ent, info) in entities['dataset'].items() if info['type'] == 'selected']
+  method_ner = [ent for (ent, info) in entities['method'].items() if info['type'] == 'generated']
+  method_user = [ent for (ent, info) in entities['method'].items() if info['type'] == 'selected']
+
+  write_entity_list(entities['dataset'].keys(), 'dataset_50', 'coner')
+  write_entity_list(entities['method'].keys(), 'method_50', 'coner')
+
+  write_entity_list(dataset_ner, 'dataset_50', 'ner')
+  write_entity_list(dataset_user, 'dataset_50', 'user')
+  write_entity_list(method_ner, 'method_50', 'ner')
+  write_entity_list(method_user, 'method_50', 'user')
+
+  print("Wrote entity lists of lengths:", len(dataset_ner), len(dataset_user), len(method_ner), len(method_user))
 
   for facet in facets:
     [seen_entities.add(key) or (not obj.update({'entity_text': key}) and total_entities.append(obj)) for key, obj in entities[facet].items() if key not in seen_entities]
@@ -518,7 +536,29 @@ def write_entities_overview_csv(facet, seedsize, entities):
       temp = [entity_text, get_relevance(rel_score, total), rel_score, rel, total, entity_info[3]]
       csv_out.writerow(temp)
 
-    print(f'Wrote {facet} entity ratings overview to "results/entities_overview_{facet}_{seedsize}_{data_date}.csv"')
+    print(f'Wrote {facet} entities overview to "results/entities_overview_{facet}_{seedsize}_{data_date}.csv"')
+
+def write_ratings_overview_csv(seedsize, ratings):
+  column_names = ['timestamp', 'type', 'entity_text', 'relevant', 'facet', 'paper_id', 'user_id', 'page_number']
+  file_path = f'results/ratings_overview/ratings_overview_{seedsize}_{data_date}.csv'
+  os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
+  with open(file_path, 'w+') as outputFile:
+    csv_out=csv.writer(outputFile)
+    csv_out.writerow(column_names)
+    
+    for r in sorted(ratings, key=lambda x: x['timestamp']):
+
+      temp = [r['timestamp'], r['highlightType'], r['entityText'], r['relevance'], r['facet'], r['pid'], r['uid'], r['pageNumber']]
+      csv_out.writerow(temp)
+
+    print(f'Wrote entity ratings overview to "results/ratings_overview/ratings_overview_{seedsize}_{data_date}.csv"')
+
+
+  # {'entityText': 'muc7', 'facet': 'dataset', 'highlightId': '4414599296', 'highlightType': 'generated', 
+  # 'pageNumber': 6, 'pid': 'conf_acl_ChieuN02', 'relevance': 'irrelevant', 'timestamp': 1527544612, 
+  # 'type': 'occurrence', 'uid': '0dfIpIclzRVhqINd3KsYQbSh9xm1', 'version': 1, 
+  # 'timestamp_formatted': '2018-05-28 23:56:52', 'firebase_id': '9053305793'}
 
 # Relevance is based on majority vote is 2 or more ratings for facet
 def get_relevance(score, total):
@@ -536,16 +576,35 @@ def print_file(line):
   with open(file_path, 'a') as out:
     out.write(line + '\n')
 
+
+def write_entity_list(entities, model_name, name):
+  file_path = f'results/entity_lists/{model_name}_extracted_entities_{name}.txt'
+  os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
+  with open(file_path, 'w') as out:
+    for ent in entities:
+      out.write(ent + '\n')
+
 def process_ratings(ratings_json):
   ret_ratings_raw = []
   ret_ratings = []
 
   for pid in ratings_json.keys():
     pid_ratings = [rating for firebase_id, rating in ratings_json[pid].items()]
+
+    # Versioning PER highlight ratings clicked
     pid_ratings.sort(key=lambda rating: (rating['facet'], rating['highlightId'], rating['uid']))
+
+    # Versioning PER total ratings clicks (do not use currently)
+    # pid_ratings.sort(key=lambda rating: (rating['facet'], rating['entityText'], rating['uid']))
+
     ret_ratings_raw += pid_ratings
 
+    # Versioning PER highlight ratings clicked
     groups = groupby(pid_ratings, lambda rating: (rating['facet'], rating['highlightId'], rating['uid']))
+
+    # Versioning PER total ratings clicks (do not use currently)
+    # groups = groupby(pid_ratings, lambda rating: (rating['facet'], rating['entityText'], rating['uid']))
 
     for key1, group in groups:
       ret_ratings.append(max(list(group), key=lambda rating: rating['version']))
